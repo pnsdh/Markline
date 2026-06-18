@@ -13,7 +13,7 @@ interface SignRec {
   sourceName: string;
   targetId: string;
   targetName: string;
-  zone: string;
+  zoneEpoch: number;
   sourceJob: number;
   targetJob: number;
 }
@@ -24,7 +24,7 @@ interface Slot {
   placedById: string;
   placedByName: string;
   since: LogTime;
-  zone: string; // 이 징이 찍힌 존 (필드 이동 판별용)
+  zoneEpoch: number; // 이 징이 찍힌 존 인스턴스(에폭) — 같은 던전 재진입도 구분(필드 이동 판별용)
 }
 
 function tryParseInt(s: string): number | null {
@@ -62,6 +62,7 @@ export class LogSession {
   private lineIndex = 0;
   private inCombat = false;
   private currentZone = '';
+  private currentZoneEpoch = 0; // 01(존 변경)에서 이름이 바뀔 때마다 증가 — 같은 던전 재진입 구분
 
   /** 플레이어 ID → 등장 순번. 비공개 모드에서 "플레이어 N" 라벨에 사용. */
   get playerNumbers(): ReadonlyMap<string, number> {
@@ -144,7 +145,7 @@ export class LogSession {
       sourceName: f[5],
       targetId: f[6],
       targetName: f[7],
-      zone: this.currentZone,
+      zoneEpoch: this.currentZoneEpoch,
       sourceJob: srcJob,
       targetJob: tgtJob,
     });
@@ -157,7 +158,11 @@ export class LogSession {
     if (t == null) return;
     this.lastLineTime = t;
     this.zones.push({ time: t, zone: f[3] });
-    this.currentZone = f[3];
+    // 존 이름이 실제로 바뀌면 새 인스턴스로 간주해 에폭 증가 (같은 던전 재진입도 여기서 구분).
+    if (f[3] !== this.currentZone) {
+      this.currentZone = f[3];
+      this.currentZoneEpoch++;
+    }
     // 존 이동 시 전투 구간 안전 종료
     if (this.inCombat && this.combats.length > 0) {
       const last = this.combats[this.combats.length - 1];
@@ -236,7 +241,7 @@ export class LogSession {
       if (mv) {
         used.add(mv);
         const slot = this.slots.get(add.waymark);
-        if (this.isStale(slot, add.zone)) emitted.push({ order: add.index, ev: this.createAdd(add) });
+        if (this.isStale(slot, add.zoneEpoch)) emitted.push({ order: add.index, ev: this.createAdd(add) });
         else emitted.push({ order: Math.min(mv.index, add.index), ev: this.createMove(add, mv, slot!) });
         this.setSlot(add);
         continue;
@@ -252,7 +257,7 @@ export class LogSession {
         if (rp) {
           used.add(rp);
           const oldSlot = this.slots.get(rp.waymark);
-          if (this.isStale(oldSlot, add.zone)) emitted.push({ order: add.index, ev: this.createAdd(add) });
+          if (this.isStale(oldSlot, add.zoneEpoch)) emitted.push({ order: add.index, ev: this.createAdd(add) });
           else emitted.push({ order: Math.min(rp.index, add.index), ev: this.createReplace(add, rp, oldSlot!) });
           this.slots.delete(rp.waymark);
           this.setSlot(add);
@@ -267,8 +272,8 @@ export class LogSession {
     for (const del of dels) {
       if (used.has(del)) continue;
       const slot = this.slots.get(del.waymark);
-      // 존 이동으로 사라진 잔여 징을 게임이 뒤늦게 정리하는 Delete는 표시하지 않는다.
-      if (slot != null && slot.targetId === del.targetId && slot.zone !== del.zone) {
+      // 존 이동/재진입으로 사라진 잔여 징을 게임이 뒤늦게 정리하는 Delete는 표시하지 않는다.
+      if (slot != null && slot.targetId === del.targetId && slot.zoneEpoch !== del.zoneEpoch) {
         this.slots.delete(del.waymark);
         continue;
       }
@@ -289,13 +294,13 @@ export class LogSession {
       placedById: add.sourceId,
       placedByName: add.sourceName,
       since: add.time,
-      zone: add.zone,
+      zoneEpoch: add.zoneEpoch,
     });
   }
 
-  /** 이전 징이 지금 찍는 존과 다른 곳에서 찍힌(=필드 이동으로 사라진) 잔여 상태인가. */
-  private isStale(slot: Slot | undefined | null, nowZone: string): boolean {
-    return slot == null || slot.zone !== nowZone;
+  /** 이전 징이 지금과 다른 존 인스턴스(에폭)에서 찍힌 잔여 상태인가 — 던전 재진입/필드 이동 판별. */
+  private isStale(slot: Slot | undefined | null, nowEpoch: number): boolean {
+    return slot == null || slot.zoneEpoch !== nowEpoch;
   }
 
   // ---------- 이벤트 생성 ----------
