@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Pretendard (한글·라틴) — 시스템 설치 여부와 무관하게 어느 환경에서도 동일하게 표시.
+ * 자체 호스팅(같은 출처)이라 외부 요청 없이 CSP(font-src 'self')와도 호환된다.
+ * 가변 폰트 한 파일로 전 굵기(100~900) 커버. © Kil Hyung-jin, SIL OFL 1.1 (src/fonts/Pretendard-OFL.txt).
+ */
+@font-face {
+  font-family: 'Pretendard Variable';
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: url('./fonts/PretendardVariable.woff2') format('woff2');
+}
+
+/*
+ * 일본어 모드(html[lang=ja])에선 가나·한자를 모두 일본어 폰트(Noto Sans JP)로 통일해
+ * "제대로 된" 일본어로 표시한다. 한글(예: 한국 서버 이름)은 Pretendard 로 폴백.
+ * (기본/한국어 모드는 Pretendard 우선 → 한자만 Noto JP 로. tailwind.config 의 sans 스택 참고)
+ */
+:root:lang(ja) {
+  font-family: 'Noto Sans JP Variable', 'Noto Sans JP', 'Pretendard Variable', 'Pretendard', 'Hiragino Kaku Gothic ProN',
+    'Yu Gothic UI', 'system-ui', sans-serif;
+}
+
+/*
+ * 테마 팔레트 — 데스크톱 ThemeManager.cs 의 색을 RGB 트리플로 토큰화.
+ * Tailwind colors(mk.*)가 rgb(var(--mk-*) / <alpha>) 로 참조한다.
+ * .dark 클래스를 <html>에 토글해 다크/라이트를 전환한다.
+ */
+:root {
+  --mk-window: 247 246 250;
+  --mk-header: 255 255 255;
+  --mk-panel: 240 239 245;
+  --mk-card: 255 255 255;
+  --mk-card-hover: 234 232 242;
+  --mk-border: 226 224 234;
+  --mk-text: 28 27 34;
+  --mk-text-sub: 91 89 102;
+  --mk-text-faint: 142 140 153;
+  --mk-accent: 91 80 200;
+  --mk-accent-soft: 233 231 249;
+  --mk-accent-btn: 91 80 200;
+  --mk-row-mine: 240 238 251;
+  --mk-flash: 13 148 136; /* teal — 점프 강조(내 닉네임 강조색과 구분) */
+}
+
+.dark {
+  --mk-window: 20 19 24;
+  --mk-header: 27 26 34;
+  --mk-panel: 25 24 31;
+  --mk-card: 35 34 48;
+  --mk-card-hover: 42 41 56;
+  --mk-border: 49 47 60;
+  --mk-text: 236 234 241;
+  --mk-text-sub: 168 166 180;
+  --mk-text-faint: 120 118 133;
+  --mk-accent: 165 160 248;
+  --mk-accent-soft: 43 42 74;
+  --mk-accent-btn: 93 84 207;
+  --mk-row-mine: 38 36 58;
+  --mk-flash: 45 212 191; /* teal-400 — 다크에서 더 밝게 */
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* 전체 UI를 살짝 확대 (브라우저 110% 줌 느낌). zoom 이 레이아웃 높이도 함께 조정하므로 100%로 충분. */
+#root {
+  zoom: 1.1;
+  height: 100%;
+}
+
+/*
+ * 테마 전환은 View Transitions API(store.setTheme)로 화면 전체를 한 장의 스냅샷으로
+ * 크로스페이드한다 → 요소 수와 무관하게 매끄럽고 일관됨. 여기선 그 크로스페이드의
+ * 속도/이징만 조율한다. (미지원 브라우저는 즉시 전환)
+ */
+/*
+ * 브라우저 기본 크로스페이드를 그대로 쓰고 속도(이징)만 조절한다.
+ * 기본은 old(불투명도 1→0) + new(0→1) 를 plus-lighter 로 합성하는데, 둘의 불투명도 합이
+ * 항상 1로 유지되도록 설계돼 있어 어느 시점에도 밝아지지 않는다(라이트 0.97 도 흰색으로 안 뜸).
+ * ⚠️ old 를 animation:none 으로 고정하면 합이 1을 넘어 밝아지므로 절대 고정하지 말 것.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.26s;
+  animation-timing-function: ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.01s;
+  }
+}
+
+/* 바로가기로 점프한 행을 잠깐 강조 — teal 링/배경이 부드럽게 사라져 시선이 바로 닿는다.
+ * (내 닉네임 강조색=accent 와 구분되도록 별도 색 --mk-flash 사용) */
+@keyframes mkJumpFlash {
+  0% {
+    box-shadow: 0 0 0 2px rgb(var(--mk-flash));
+    background-color: rgb(var(--mk-flash) / 0.18);
+  }
+  60% {
+    box-shadow: 0 0 0 2px rgb(var(--mk-flash));
+    background-color: rgb(var(--mk-flash) / 0.18);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+    background-color: transparent;
+  }
+}
+.mk-jump-flash {
+  border-radius: 10px;
+  animation: mkJumpFlash 2.8s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mk-jump-flash {
+    animation-duration: 0.01s;
+  }
+}
+
+body {
+  margin: 0;
+  background-color: rgb(var(--mk-window));
+  color: rgb(var(--mk-text));
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 키보드 포커스 접근성 — 마우스 클릭엔 안 보이고 키보드 탐색 시에만 또렷한 링 */
+:focus-visible {
+  outline: 2px solid rgb(var(--mk-accent));
+  outline-offset: 2px;
+}
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible {
+  border-radius: 8px;
+}
+/* 입력창은 자체 포커스 보더가 있어 이중 아웃라인 방지 */
+input:focus-visible {
+  outline: none;
+}
+
+/* 텍스트 선택 색 — accent 톤으로 통일 */
+::selection {
+  background-color: rgb(var(--mk-accent) / 0.28);
+}
+
+/* 얇고 은은한 스크롤바 — OS 기본 대신 테마에 녹아들게 (다크/라이트 모두) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--mk-border)) transparent;
+}
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--mk-border));
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--mk-text-faint));
+  background-clip: padding-box;
+  border: 3px solid transparent;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

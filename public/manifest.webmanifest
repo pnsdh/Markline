@@ -1,0 +1,14 @@
+{
+  "name": "Markline",
+  "short_name": "Markline",
+  "description": "FFXIV 머리 사인 마커(공격·속박·금지·도형)의 부착·제거·이동·교체를 보여주는 ACT 로그 타임라인 뷰어",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#141318",
+  "theme_color": "#1B1A22",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "app-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
