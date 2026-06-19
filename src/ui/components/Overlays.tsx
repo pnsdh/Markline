@@ -3,6 +3,7 @@ import { AlertTriangle, FileUp, Info, MousePointerSquareDashed, PlayCircle, Rada
 import { Loc } from '../../core/loc';
 import { useStore, supportsFsAccess } from '../store';
 import { useOpenLog } from '../useOpenLog';
+import { SwapLabel } from './SwapLabel';
 
 /**
  * 로그 열기 동작 — 의도 기준. 주: 실시간 추적(폴더 → 최신+롤오버), 보조: 로그 파일 하나(분석).
@@ -12,20 +13,20 @@ import { useOpenLog } from '../useOpenLog';
 function OpenActions() {
   const { openLog, openLatest, inputRef, onInputChange } = useOpenLog();
   const primary =
-    'flex items-center gap-2 rounded-xl bg-gradient-to-br from-mk-accent to-mk-accent-btn px-5 py-3 text-[14px] font-semibold text-white shadow-md shadow-mk-accent/25 transition-all hover:brightness-110 active:scale-[0.98]';
+    'group flex items-center gap-2 rounded-xl bg-gradient-to-br from-mk-accent to-mk-accent-btn px-5 py-3 text-[14px] font-semibold text-white shadow-md shadow-mk-accent/25 transition-all hover:brightness-110 active:scale-[0.98]';
   const secondary =
-    'flex items-center gap-2 rounded-xl border border-mk-border bg-mk-card px-5 py-3 text-[14px] font-medium text-mk-text-sub transition-colors hover:bg-mk-card-hover hover:text-mk-text';
+    'group flex items-center gap-2 rounded-xl border border-mk-border bg-mk-card px-5 py-3 text-[14px] font-medium text-mk-text-sub transition-colors hover:bg-mk-card-hover hover:text-mk-text';
   return (
     <div className="flex flex-wrap items-center justify-center gap-2.5">
       {supportsFsAccess ? (
         <>
           <button onClick={openLatest} title={Loc.t('tip_live_track')} className={primary}>
-            <Radar size={18} />
-            {Loc.t('live_track')}
+            <Radar size={18} className="shrink-0" />
+            <SwapLabel label={Loc.t('live_track')} hover={Loc.t('live_track_sub')} />
           </button>
           <button onClick={openLog} title={Loc.t('tip_open_file')} className={secondary}>
-            <FileUp size={18} />
-            {Loc.t('open_log')}
+            <FileUp size={18} className="shrink-0" />
+            <SwapLabel label={Loc.t('open_log')} hover={Loc.t('open_log_sub')} />
           </button>
         </>
       ) : (

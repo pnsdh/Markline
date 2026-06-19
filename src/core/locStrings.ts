@@ -8,8 +8,10 @@ type Triple = readonly [ko: string, en: string, ja: string];
 
 const MAP: Record<string, Triple> = {
   // ── 상단 바 / 버튼 ──────────────────────────────
-  open_log: ['로그 파일 열기', 'Open Log File', 'ログファイルを開く'],
+  open_log: ['단일 로그 분석', 'Single Log Analysis', '単一ログ分析'],
   live_track: ['실시간 추적', 'Live Tracking', 'リアルタイム追跡'],
+  live_track_sub: ['로그 폴더 선택', 'Select log folder', 'ログフォルダを選択'],
+  open_log_sub: ['로그 파일 선택', 'Select log file', 'ログファイルを選択'],
 
   // ── 좌측 패널 ──────────────────────────────────
   combat_sections: ['전투 구간', 'Encounters', '戦闘区間'],

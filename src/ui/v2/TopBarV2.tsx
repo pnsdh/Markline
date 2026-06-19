@@ -3,6 +3,7 @@ import { Loc } from '../../core/loc';
 import { useStore, supportsFsAccess } from '../store';
 import { useOpenLog } from '../useOpenLog';
 import { Menu } from '../components/Menu';
+import { SwapLabel } from '../components/SwapLabel';
 
 export function TopBarV2() {
   const { openLog, openLatest, inputRef, onInputChange } = useOpenLog();
@@ -54,18 +55,18 @@ export function TopBarV2() {
           <button
             onClick={openLatest}
             title={Loc.t('tip_live_track')}
-            className="ml-1 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-gradient-to-br from-mk-accent to-mk-accent-btn px-3.5 py-2 text-[13px] font-semibold text-white shadow-md shadow-mk-accent/25 transition-all hover:brightness-110 active:scale-[0.97]"
+            className="group ml-1 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-gradient-to-br from-mk-accent to-mk-accent-btn px-3.5 py-2 text-[13px] font-semibold text-white shadow-md shadow-mk-accent/25 transition-all hover:brightness-110 active:scale-[0.97]"
           >
-            <Radar size={16} />
-            <span className="hidden sm:inline">{Loc.t('live_track')}</span>
+            <Radar size={16} className="shrink-0" />
+            <SwapLabel label={Loc.t('live_track')} hover={Loc.t('live_track_sub')} className="hidden sm:grid" />
           </button>
           <button
             onClick={openLog}
             title={Loc.t('tip_open_file')}
-            className="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-mk-border bg-mk-card px-3 py-2 text-[13px] font-medium text-mk-text-sub transition-colors hover:bg-mk-card-hover hover:text-mk-text sm:flex"
+            className="group hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-mk-border bg-mk-card px-3 py-2 text-[13px] font-medium text-mk-text-sub transition-colors hover:bg-mk-card-hover hover:text-mk-text sm:flex"
           >
-            <FileUp size={16} />
-            <span className="hidden lg:inline">{Loc.t('open_log')}</span>
+            <FileUp size={16} className="shrink-0" />
+            <SwapLabel label={Loc.t('open_log')} hover={Loc.t('open_log_sub')} className="hidden lg:grid" />
           </button>
         </>
       ) : (
