@@ -73,33 +73,57 @@ async function readWhole(file: Blob, token: number): Promise<void> {
 }
 
 /**
+ * 핸들에서 [from, to) 바이트를 청크로 읽어 splitter→세션에 먹인다.
+ * ⚠️ ACT가 동시에 로그를 append하면 직전에 뜬 File 스냅샷이 무효화돼 읽기가 DOMException
+ * (NetworkError 등)으로 터진다. 그래서 청크마다 **그때그때 새 스냅샷**을 떠서 원자적으로(arrayBuffer)
+ * 읽고, 실패하면 잠깐 쉬고 **같은 위치부터 재시도**한다. 성공한 청크만 splitter에 먹이고 위치를
+ * 전진시키므로 중복/유실이 없다. 반환값 = 실제로 전진한 위치(취소되면 중간값).
+ */
+async function feedRange(
+  handle: FileSystemFileHandle,
+  from: number,
+  to: number,
+  splitter: LineSplitter,
+  token: number,
+  onPos?: (p: number) => void,
+): Promise<number> {
+  const CHUNK = 4 * 1024 * 1024;
+  let p = from;
+  let errs = 0;
+  while (p < to) {
+    if (token !== cancelToken) return p;
+    const end = Math.min(p + CHUNK, to);
+    let buf: ArrayBuffer;
+    try {
+      buf = await (await handle.getFile()).slice(p, end).arrayBuffer();
+    } catch (err) {
+      if (token !== cancelToken) return p;
+      if (++errs >= 40) throw err; // 약 2초 연속 실패만 오류로 보고
+      await delay(50);
+      continue; // 동시 기록으로 스냅샷 무효화 → 같은 위치부터 재시도
+    }
+    errs = 0;
+    const lines = splitter.push(new Uint8Array(buf));
+    if (lines.length) session.feedLines(lines);
+    p = end;
+    onPos?.(p);
+  }
+  return p;
+}
+
+/**
  * File System Access 핸들을 주기적으로 다시 읽어 증가분만 따라간다 (실시간 추적).
- * 초기 전체 읽기 → 400ms 폴링. 파일이 줄면(교체/리셋) 세션 리셋 후 재수신.
+ * 초기 전체 읽기 → 50ms 폴링. 파일이 줄면(교체/리셋) 세션 리셋 후 재수신.
+ * 동시 기록 중 읽기 실패는 feedRange가 재시도로 흡수 — 폴링 루프는 죽지 않는다.
  */
 async function tail(handle: FileSystemFileHandle, token: number): Promise<void> {
   try {
-    let file = await handle.getFile();
-    const total = file.size;
-    let pos = 0;
-    let lastPct = -1;
     let splitter = new LineSplitter();
 
     // ---- 초기 전체 읽기 ----
-    const reader = file.stream().getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (token !== cancelToken) return;
-      if (done) break;
-      const chunk = value as Uint8Array;
-      const lines = splitter.push(chunk);
-      if (lines.length) session.feedLines(lines);
-      pos += chunk.length;
-      const pct = total ? Math.floor((pos / total) * 50) : 50;
-      if (pct !== lastPct) {
-        lastPct = pct;
-        post({ type: 'progress', value: total ? pos / total : 1 });
-      }
-    }
+    const total = (await handle.getFile()).size;
+    let pos = await feedRange(handle, 0, total, splitter, token, (p) => post({ type: 'progress', value: total ? p / total : 1 }));
+    if (token !== cancelToken) return;
     session.flushPending();
     post({ type: 'initialLoaded' });
     post(snapshot(true));
@@ -116,24 +140,20 @@ async function tail(handle: FileSystemFileHandle, token: number): Promise<void> 
     };
 
     // ---- 실시간 폴링 ----
-    // 폴링 50ms + 보류 50ms (near-real-time 한계). 폴링당 비용은 파일 크기 확인 + 증가분만 읽기라
-    // 작고(초당 20회), 전체 스냅샷은 이벤트 변화 시에만 보낸다. 실질 지연 하한은 ACT의 로그 기록 지연.
     let lastIdleFlush = 0;
-    let getFileErrors = 0; // getFile 일시 실패(쓰기 중 잠금 등) 허용치
+    let getFileErrors = 0; // getFile(크기 확인) 일시 실패 허용치
     for (;;) {
       await delay(50);
       if (token !== cancelToken) return;
-      // getFile 은 일시적으로 실패할 수 있다 → 몇 번은 건너뛰고 재시도, 지속되면 오류 보고.
-      // (읽기 전 단계라 splitter/pos 상태를 건드리지 않아 재시도가 안전하다.)
+      let len: number;
       try {
-        file = await handle.getFile();
+        len = (await handle.getFile()).size;
         getFileErrors = 0;
       } catch (err) {
         if (token !== cancelToken) return;
         if (++getFileErrors >= 20) throw err; // 약 1초 연속 실패 → 중단
         continue;
       }
-      const len = file.size;
 
       if (len < pos) {
         // 파일이 처음부터 다시 쓰임 → 세션 리셋
@@ -145,25 +165,13 @@ async function tail(handle: FileSystemFileHandle, token: number): Promise<void> 
       }
 
       if (len > pos) {
-        const slice = file.slice(pos);
-        const r = slice.stream().getReader();
-        const batch: string[] = [];
-        for (;;) {
-          const { done, value } = await r.read();
-          if (token !== cancelToken) return;
-          if (done) break;
-          const chunk = value as Uint8Array;
-          batch.push(...splitter.push(chunk));
-        }
-        pos = len;
-        if (batch.length) {
-          session.feedLines(batch);
-          pushUpdate();
-        }
+        const before = pos;
+        pos = await feedRange(handle, pos, len, splitter, token);
+        if (token !== cancelToken) return;
+        if (pos > before) pushUpdate();
       } else {
         // 새 데이터 없음 — 보류 그룹 확정.
-        // 로그 검증 결과 같은-ts 사인 묶음(Delete+Add)은 파일에 원자적으로(바로 옆줄로) 기록되므로
-        // 폴링이 묶음을 가를 위험이 없다 → 빈 폴링 한 번이면 곧장 확정해도 안전.
+        // 같은-ts 사인 묶음(Delete+Add)은 파일에 원자적으로(바로 옆줄로) 기록되므로 폴링이 가를 위험이 없다.
         const now = Date.now();
         if (session.hasPending && session.pendingAgeMs > 50 && now - lastIdleFlush > 50) {
           lastIdleFlush = now;
