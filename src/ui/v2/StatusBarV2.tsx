@@ -26,8 +26,9 @@ export function StatusBarV2() {
       dot = fresh ? '#2E9E5B' : '#D9A40A';
       text = Loc.t(fresh ? 'status_live' : 'status_live_idle');
     } else {
-      dot = '#2E9E5B';
-      text = Loc.t('status_idle');
+      // 정적 단일 로그 — 실시간 수신이 아니므로 초록(라이브) 대신 차분한 슬레이트.
+      dot = '#7C8AA5';
+      text = Loc.t('status_static');
     }
   } else if (status === 'loading') {
     dot = '#D9A40A';

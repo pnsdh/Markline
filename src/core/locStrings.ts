@@ -89,6 +89,7 @@ const MAP: Record<string, Triple> = {
   status_live: ['실시간 감시 중', 'Watching (live)', 'リアルタイム監視中'],
   status_live_idle: ['감시 중 (새 기록 대기)', 'Watching (waiting for new records)', '監視中（新しい記録を待機）'],
   status_idle: ['대기 중', 'Idle', '待機中'],
+  status_static: ['분석 완료', 'Loaded', '読込完了'],
   status_mychar: ['내 캐릭터: {0} · ', 'My character: {0} · ', '自分: {0} · '],
   status_events: ['표식 이벤트 {0}건 · {1}', '{0} marker events · {1}', '印イベント {0}件 · {1}'],
   status_lastrec: ['마지막 기록 {0}', 'last record {0}', '最終記録 {0}'],
