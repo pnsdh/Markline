@@ -25,6 +25,7 @@ interface Slot {
   placedByName: string;
   since: LogTime;
   zoneEpoch: number; // 이 징이 찍힌 존 인스턴스(에폭) — 같은 던전 재진입도 구분(필드 이동 판별용)
+  dead?: boolean; // 대상(몹/NPC)이 죽어 징이 사라진 상태 — stale 과 동일하게 취급(재배치는 새 부착)
 }
 
 function tryParseInt(s: string): number | null {
@@ -94,6 +95,10 @@ export class LogSession {
         this.onSign(line);
         return;
       }
+      if (c0 === '2' && c1 === '5' && line[2] === '|') {
+        this.onDeath(line);
+        return;
+      }
       if (c0 === '0' && line[2] === '|') {
         if (c1 === '1') this.onZone(line);
         else if (c1 === '2') this.onMe(line);
@@ -148,6 +153,49 @@ export class LogSession {
       zoneEpoch: this.currentZoneEpoch,
       sourceJob: srcJob,
       targetJob: tgtJob,
+    });
+  }
+
+  /**
+   * 25|ts|targetId|targetName|sourceId|sourceName|hash — 대상 사망.
+   * 몹/NPC가 죽으면 그 액터에 붙어있던 징은 함께 사라진다. '대상 처치' 사유의 자동 해제
+   * (SystemRemove)를 합성하고, 슬롯을 dead 로 표시해 존 변경(stale)과 같게 처리한다:
+   * 같은 마커를 다시 찍으면 '이동'이 아니라 새 '부착'으로, 게임이 뒤늦게 보내는 정리 Delete 는
+   * (이미 사라진 것이므로) 표시하지 않는다.
+   * (플레이어 시체에는 징이 남으므로 플레이어 ID 는 제외.)
+   */
+  private onDeath(line: string): void {
+    const f = line.split('|');
+    if (f.length < 3) return;
+    const t = parseLogTime(f[1]);
+    if (t == null) return;
+    this.lastLineTime = t;
+    const deadId = f[2];
+    if (deadId.startsWith('10')) return; // 플레이어 제외
+    // 사망 직전의 같은-타임스탬프 그룹은 '사망 전' 상태로 먼저 확정한다(순서 역전 방지).
+    if (this.pendingTs != null && this.pendingTs !== f[1]) this.flushGroup();
+    for (const [waymark, slot] of this.slots) {
+      if (slot.targetId !== deadId || slot.dead) continue;
+      this.events.push(this.createDeathRemove(waymark, slot, t));
+      slot.dead = true;
+    }
+  }
+
+  private createDeathRemove(waymark: number, slot: Slot, t: LogTime): MarkerEvent {
+    const target = this.resolve(slot.targetId, slot.targetName, 0);
+    const placedByName = slot.placedByName.length > 0 ? slot.placedByName : null;
+    const placedBy = placedByName != null ? this.resolve(slot.placedById, placedByName, 0) : null;
+    return new MarkerEvent({
+      time: t,
+      kind: 'SystemRemove',
+      marker: getMarker(waymark),
+      target,
+      self: false,
+      held: t - slot.since,
+      placedBy,
+      showPlacer: placedBy != null,
+      reason: 'death',
+      involvesMe: target.isMe || (this.myId != null && slot.placedById === this.myId),
     });
   }
 
@@ -272,8 +320,8 @@ export class LogSession {
     for (const del of dels) {
       if (used.has(del)) continue;
       const slot = this.slots.get(del.waymark);
-      // 존 이동/재진입으로 사라진 잔여 징을 게임이 뒤늦게 정리하는 Delete는 표시하지 않는다.
-      if (slot != null && slot.targetId === del.targetId && slot.zoneEpoch !== del.zoneEpoch) {
+      // 존 이동/재진입 또는 대상 사망으로 이미 사라진 잔여 징을, 게임이 뒤늦게 정리하는 Delete는 표시하지 않는다.
+      if (slot != null && slot.targetId === del.targetId && (slot.zoneEpoch !== del.zoneEpoch || slot.dead === true)) {
         this.slots.delete(del.waymark);
         continue;
       }
@@ -298,9 +346,9 @@ export class LogSession {
     });
   }
 
-  /** 이전 징이 지금과 다른 존 인스턴스(에폭)에서 찍힌 잔여 상태인가 — 던전 재진입/필드 이동 판별. */
+  /** 이전 징이 더는 유효하지 않은 잔여 상태인가 — 다른 존 인스턴스(재진입) 또는 대상 사망. */
   private isStale(slot: Slot | undefined | null, nowEpoch: number): boolean {
-    return slot == null || slot.zoneEpoch !== nowEpoch;
+    return slot == null || slot.zoneEpoch !== nowEpoch || slot.dead === true;
   }
 
   // ---------- 이벤트 생성 ----------

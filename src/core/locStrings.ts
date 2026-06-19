@@ -209,6 +209,7 @@ const MAP: Record<string, Triple> = {
   det_replaced: ['이전 표식({0})은 {1} 동안 유지됨', 'previous marker ({0}) held {1}', '前の印（{0}）は{1}保持'],
   det_placer: ['부착자: {0}', 'placed by {0}', '設置者: {0}'],
   det_auto: ['(로그아웃·대상 소멸 등 자동 해제)', '(auto-cleared: logout, despawn, etc.)', '(ログアウト・対象消滅などで自動解除)'],
+  det_death: ['(대상 처치로 해제)', '(cleared: target defeated)', '(対象撃破により解除)'],
 
   // ── 대상 / 익명 ────────────────────────────────
   unknown_target: ['알 수 없는 대상({0})', 'Unknown target ({0})', '不明な対象（{0}）'],

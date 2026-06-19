@@ -31,7 +31,20 @@ function suffix(ev: MarkerEvent): RichPart[] {
   const dur = ev.held != null ? MarkerEvent.formatDuration(ev.held) : null;
   const lang = Loc.current;
   if (dur) segs.push(lang === Lang.En ? `held ${dur}` : lang === Lang.Ja ? `${dur} 保持` : `${dur} 유지`);
-  if (ev.kind === 'SystemRemove') segs.push(lang === Lang.En ? 'auto' : lang === Lang.Ja ? '自動解除' : '자동 해제');
+  if (ev.kind === 'SystemRemove')
+    segs.push(
+      ev.reason === 'death'
+        ? lang === Lang.En
+          ? 'target defeated'
+          : lang === Lang.Ja
+            ? '対象撃破'
+            : '대상 처치'
+        : lang === Lang.En
+          ? 'auto'
+          : lang === Lang.Ja
+            ? '自動解除'
+            : '자동 해제',
+    );
   if (segs.length === 0) return [];
   return [txt(` (${segs.join(' · ')})`, true)];
 }

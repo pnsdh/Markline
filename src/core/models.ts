@@ -7,6 +7,9 @@ import { fmtHms, fmtHmsMs, fmtMsOnly, LogTime } from './time';
 
 export type EventKind = 'Add' | 'Remove' | 'SystemRemove' | 'Move' | 'Replace';
 
+/** 자동 해제(SystemRemove)의 사유 — 'death'는 대상(몹/NPC) 처치로 징이 사라진 경우. */
+export type EventReason = 'death';
+
 /**
  * .NET `ToString("0.00")` / `"0.0"` 와 동일한 반올림으로 고정 소수 문자열을 만든다.
  * .NET Core는 double의 **최단 round-trippable 십진 표현**을 만든 뒤 그 자리에서
@@ -77,6 +80,7 @@ export interface MarkerEventInit {
   placedBy?: Ref | null;
   showPlacer?: boolean;
   involvesMe?: boolean;
+  reason?: EventReason | null; // SystemRemove 사유(대상 처치 등)
 }
 
 /** 합성된 마커 이벤트 한 건. 본문·상세는 현재 언어로 계산. */
@@ -93,6 +97,7 @@ export class MarkerEvent {
   readonly placedBy: Ref | null;
   readonly showPlacer: boolean;
   readonly involvesMe: boolean;
+  readonly reason: EventReason | null;
 
   // 구간화 단계에서 채워지는 상대 시간
   relSpan: number | null = null; // ms
@@ -114,6 +119,7 @@ export class MarkerEvent {
     this.placedBy = init.placedBy ?? null;
     this.showPlacer = init.showPlacer ?? false;
     this.involvesMe = init.involvesMe ?? false;
+    this.reason = init.reason ?? null;
   }
 
   /** 전투 시작(또는 종료) 기준 상대 시간 문자열. */
@@ -308,7 +314,7 @@ export class MarkerEvent {
       const segs: string[] = [];
       if (this.held != null) segs.push(Loc.t('det_held', MarkerEvent.formatDuration(this.held)));
       if (this.showPlacer && this.placedBy != null) segs.push(Loc.t('det_placer', MarkerEvent.anonName(this.placedBy)));
-      if (this.kind === 'SystemRemove') segs.push(Loc.t('det_auto'));
+      if (this.kind === 'SystemRemove') segs.push(Loc.t(this.reason === 'death' ? 'det_death' : 'det_auto'));
       return segs.length > 0 ? segs.join(' · ') : null;
     }
     return null;
