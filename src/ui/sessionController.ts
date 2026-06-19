@@ -6,7 +6,7 @@ import { Loc } from '../core/loc';
 import { MarkerEvent } from '../core/models';
 import { buildSegments } from '../core/segmenter';
 import { newestLog, supportsFsAccess } from '../io/fileOpen';
-import { deleteHandle, loadHandle, saveHandle } from '../io/handleStore';
+import { loadHandle, saveHandle } from '../io/handleStore';
 import type { FromWorker, Snapshot, ToWorker } from '../io/types';
 import type { StoreState } from './store';
 
@@ -122,11 +122,14 @@ export function loadFile(file: File): void {
   post({ type: 'loadFile', file });
 }
 
-/** 파일 핸들 실시간 추적 (폴더 자동전환 없음). */
+/**
+ * 파일 핸들 실시간 추적 (이 세션은 폴더 자동전환 없음).
+ * 단, 기억해둔 폴더(lastDir)는 지우지 않는다 — 일회성 단일 파일 열기가 "시작 시 최신 로그
+ * 자동 열기"(폴더 기반)를 끊지 않도록. 시작 시엔 lastDir 가 lastFile 보다 우선한다.
+ */
 export function tailHandle(handle: FileSystemFileHandle): void {
   stopDirWatch();
   currentDir = null;
-  void deleteHandle('lastDir');
   api.setState({ folderName: null });
   doTail(handle);
 }

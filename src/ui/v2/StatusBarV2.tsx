@@ -1,3 +1,4 @@
+import { Folder } from 'lucide-react';
 import { Anonymizer } from '../../core/anonymizer';
 import { Loc } from '../../core/loc';
 import { fmtHms } from '../../core/time';
@@ -8,6 +9,7 @@ export function StatusBarV2() {
   const live = useStore((s) => s.live);
   const fresh = useStore((s) => s.fresh);
   const fileName = useStore((s) => s.fileName);
+  const folderName = useStore((s) => s.folderName);
   const lastLineTime = useStore((s) => s.lastLineTime);
   const myName = useStore((s) => s.myName);
   const myId = useStore((s) => s.myId);
@@ -44,6 +46,16 @@ export function StatusBarV2() {
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: dot }} />
         </span>
         <span className="shrink-0 font-medium text-mk-text">{text}</span>
+        {/* 실시간 추적(폴더) 모드 표시 — 폴더가 있으면 새 로그 자동 전환(롤오버) 대상임을 알린다. */}
+        {folderName && (
+          <span
+            title={Loc.t('tip_live_track')}
+            className="hidden shrink-0 items-center gap-1 whitespace-nowrap text-mk-accent sm:inline-flex"
+          >
+            <Folder size={12} />
+            {folderName}
+          </span>
+        )}
         {fileName && <span className="truncate text-mk-text-faint">· {fileName}</span>}
         {myName && (
           <span className="shrink-0 whitespace-nowrap text-mk-text-faint">

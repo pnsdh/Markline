@@ -144,7 +144,7 @@ test('오류 화면: 로드 실패 시 본문에 안내 + 복구 버튼', async 
   await expect(page.getByText('로그를 열 수 없습니다')).toBeVisible();
   // 본문(에러 화면)과 상태바 양쪽에 메시지 노출 → 본문 쪽만 정확히 매칭
   await expect(page.getByText('이 폴더에 로그 파일(.log)이 없습니다.', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '로그 파일 선택' })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: '실시간 추적' })).toBeVisible();
 });
 
 test('반응형: 모바일 뷰포트', async ({ page }) => {

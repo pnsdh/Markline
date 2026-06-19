@@ -9,7 +9,7 @@ type Triple = readonly [ko: string, en: string, ja: string];
 const MAP: Record<string, Triple> = {
   // ── 상단 바 / 버튼 ──────────────────────────────
   open_log: ['로그 파일 열기', 'Open Log File', 'ログファイルを開く'],
-  latest_log: ['로그 폴더로 파일 열기', 'Open from Log Folder', 'ログフォルダから開く'],
+  live_track: ['실시간 추적', 'Live Tracking', 'リアルタイム追跡'],
 
   // ── 좌측 패널 ──────────────────────────────────
   combat_sections: ['전투 구간', 'Encounters', '戦闘区間'],
@@ -17,10 +17,15 @@ const MAP: Record<string, Triple> = {
   lbl_markers: ['표식', 'Markers', '印'],
   lbl_actions: ['조작', 'Actions', '操作'],
   mychar_label: ['내 캐릭터', 'My character', '自分'],
-  tip_pick_folder: [
-    '로그 폴더 선택 — 그 폴더의 가장 최근 .log를 열고, 새 로그가 생기면 자동으로 따라갑니다',
-    'Pick a log folder — opens the latest .log in it and follows new logs automatically',
-    'ログフォルダを選択 — その中の最新.logを開き、新しいログができると自動で追従します',
+  tip_live_track: [
+    'ACT 로그 폴더를 선택해 실시간 추적 — 최신 로그를 열고, 날짜가 바뀌거나 ACT를 재시작해 새 로그가 생겨도 자동으로 따라갑니다.',
+    'Pick your ACT log folder for live tracking — opens the latest log and follows new ones (date change / ACT restart).',
+    'ACTログフォルダを選んでリアルタイム追跡 — 最新ログを開き、日付変更やACT再起動で新しいログができても自動追従します。',
+  ],
+  tip_open_file: [
+    '로그 파일 하나를 열어 봅니다 — 실시간 추적·자동 전환 없음(과거 전투 리뷰용).',
+    'Open a single log file — no live tracking or auto-switch (for reviewing past fights).',
+    'ログファイルを1つ開きます — リアルタイム追跡・自動切替なし（過去の戦闘確認用）。',
   ],
   cat_attack: ['공격', 'Attack', '攻撃'],
   cat_bind: ['속박', 'Bind', '足止め'],
@@ -48,7 +53,6 @@ const MAP: Record<string, Triple> = {
     'Shows sign markers (attack, bind, ignore, shapes)\nbeing placed, removed, and moved over time.',
     'ログに記録された頭の印（攻撃・足止め・禁止・図形）の\n設置・解除・移動を時系列で表示します。',
   ],
-  empty_select: ['로그 파일 선택', 'Select Log File', 'ログファイルを選択'],
   error_title: ['로그를 열 수 없습니다', "Couldn't open the log", 'ログを開けませんでした'],
   crash_title: ['문제가 발생했습니다', 'Something went wrong', '問題が発生しました'],
   crash_desc: [
@@ -170,14 +174,14 @@ const MAP: Record<string, Triple> = {
   tip_lang: ['언어 선택', 'Select language', '言語を選択'],
   lang_auto: ['자동 (시스템)', 'Auto (system)', '自動（システム）'],
   tip_autoopen_on: [
-    '시작 시 최신 로그 자동 열기: 켜짐 (클릭: 끄기)',
-    'Auto-open latest log on startup: on (click: turn off)',
-    '起動時に最新ログを開く: オン（クリック: オフ）',
+    '시작 시 최신 로그 자동 열기: 켜짐 — 마지막에 연 폴더의 가장 최근 로그를 엽니다 (클릭: 끄기)',
+    'Auto-open latest on startup: on — opens the newest log in your last folder (click: turn off)',
+    '起動時に最新ログを自動で開く: オン — 最後に開いたフォルダの最新ログを開きます（クリック: オフ）',
   ],
   tip_autoopen_off: [
-    '시작 시 최신 로그 자동 열기: 꺼짐 (클릭: 켜기)',
-    'Auto-open latest log on startup: off (click: turn on)',
-    '起動時に最新ログを開く: オフ（クリック: オン）',
+    '시작 시 최신 로그 자동 열기 — 마지막에 연 로그 폴더의 가장 최근 .log를 매번 엽니다. 켜면 폴더를 한 번 선택합니다.',
+    "Auto-open latest on startup — opens the newest .log in your last log folder. Picks a folder when you turn it on.",
+    '起動時に最新ログを自動で開く — 最後に開いたフォルダの最新.logを毎回開きます。オンにするとフォルダを選択します。',
   ],
 
   // ── 구간 ──────────────────────────────────────
