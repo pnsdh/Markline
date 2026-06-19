@@ -49,7 +49,7 @@ function applySnapshot(snap: Snapshot): void {
     ev.seq = i;
   });
   Anonymizer.setNumbers(new Map(snap.playerNumbers));
-  const segments = buildSegments({ events, combats: snap.combats, zones: snap.zones });
+  const segments = buildSegments({ events, combats: snap.combats, zones: snap.zones, wipes: snap.wipes });
   api.setState({
     events,
     segments,

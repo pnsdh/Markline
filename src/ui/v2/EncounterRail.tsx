@@ -91,7 +91,7 @@ export function EncounterRail() {
           compact ? (
             <RailRowCompact key={seg.key} seg={seg} count={segCount(seg, hidePostCombat)} active={selectedKey === seg.key} onClick={() => setSelectedKey(seg.key)} />
           ) : (
-            <RailCard key={seg.key} seg={seg} count={segCount(seg, hidePostCombat)} hidePostCombat={hidePostCombat} active={selectedKey === seg.key} onClick={() => setSelectedKey(seg.key)} />
+            <RailCard key={seg.key} seg={seg} count={segCount(seg, hidePostCombat)} active={selectedKey === seg.key} onClick={() => setSelectedKey(seg.key)} />
           ),
         )}
       </div>
@@ -136,29 +136,28 @@ function RailRowCompact({ seg, count, active, onClick }: { seg: Segment; count: 
 function RailCard({
   seg,
   count,
-  hidePostCombat,
   active,
   onClick,
 }: {
   seg: Segment;
   count: number;
-  hidePostCombat: boolean;
   active: boolean;
   onClick: () => void;
 }) {
   // 미니 타임라인 — 각 조작이 전투 중 '언제' 일어났는지 시간 축에 눈금으로. 색은 동작.
+  // 축은 전투 시작~전투 종료(전멸). 전투 후 정리는 눈금에서 제외한다.
   // 겹칠 때 우선순위 낮은 것부터 그려(아래) 이동/제거가 위에 보이게 정렬.
   const ticks = useMemo(() => {
-    const shown = hidePostCombat ? seg.events.filter((e) => !e.postCombat) : seg.events;
-    if (shown.length === 0) return [];
     const start = seg.start;
-    let end = seg.end ?? start;
-    for (const e of shown) if (e.time > end) end = e.time;
+    const end = seg.combatEnd ?? seg.end ?? start; // 전투 종료(전멸)까지만; 전투 없는 필드는 마지막 마커까지
+    const shown = seg.events.filter((e) => e.time <= end); // 전투 종료 이후(정리)는 눈금에서 제외
+    if (shown.length === 0) return [];
     const span = Math.max(1, end - start);
+    const clamp = (p: number) => Math.max(0, Math.min(100, p));
     return shown
-      .map((e) => ({ pct: ((e.time - start) / span) * 100, color: kindColor(e.kind), rank: TICK_PRIORITY[e.kind] }))
+      .map((e) => ({ pct: clamp(((e.time - start) / span) * 100), color: kindColor(e.kind), rank: TICK_PRIORITY[e.kind] }))
       .sort((a, b) => a.rank - b.rank);
-  }, [seg, hidePostCombat]);
+  }, [seg]);
 
   return (
     <button

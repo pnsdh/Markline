@@ -48,7 +48,8 @@ function tryParseHex(s: string): number | null {
 export class LogSession {
   readonly events: MarkerEvent[] = [];
   readonly combats: CombatWindow[] = [];
-  readonly zones: { time: LogTime; zone: string }[] = [];
+  readonly zones: { time: LogTime; zone: string; cf?: boolean }[] = []; // cf=인스턴스 듀티 여부(265)
+  readonly wipes: LogTime[] = []; // 전멸(듀티 디렉터 fade out) 시각 — 구간(트라이) 경계용
   myId: string | null = null;
   myName: string | null = null;
   lastLineTime: LogTime | null = null;
@@ -99,6 +100,10 @@ export class LogSession {
         this.onDeath(line);
         return;
       }
+      if (c0 === '3' && c1 === '3' && line[2] === '|') {
+        this.onActorControl(line);
+        return;
+      }
       if (c0 === '0' && line[2] === '|') {
         if (c1 === '1') this.onZone(line);
         else if (c1 === '2') this.onMe(line);
@@ -107,6 +112,10 @@ export class LogSession {
       }
       if (c0 === '2' && c1 === '6' && line[2] === '0' && line[3] === '|') {
         this.onInCombat(line);
+        return;
+      }
+      if (c0 === '2' && c1 === '6' && line[2] === '5' && line[3] === '|') {
+        this.onContentFinder(line);
         return;
       }
       // 261 CombatantMemory — Name 필드가 있는 줄만 가볍게 이름 보강
@@ -197,6 +206,28 @@ export class LogSession {
       reason: 'death',
       involvesMe: target.isMe || (this.myId != null && slot.placedById === this.myId),
     });
+  }
+
+  /**
+   * 33|ts|instance|command|… — 듀티 디렉터(ActorControl). 전멸(fade out, command 40000005)만 모은다.
+   * 구간(트라이) 경계로 쓰인다 — 리셋되는 컨텐츠(레이드·토벌·절)에서만 발생, 일반 던전엔 거의 없음.
+   * (cactbot LogGuide.md "Line 33" 참고.)
+   */
+  private onActorControl(line: string): void {
+    const f = line.split('|');
+    if (f.length < 4 || f[3] !== '40000005') return;
+    const t = parseLogTime(f[1]);
+    if (t != null) this.wipes.push(t);
+  }
+
+  /**
+   * 265|ts|zoneId|zoneName|inContentFinderContent|… — 존 진입 직후 따라온다.
+   * 인스턴스 듀티 여부를 직전 존 항목에 단다(필드/야외=False → 전투 프레이밍 생략에 사용).
+   */
+  private onContentFinder(line: string): void {
+    const f = line.split('|');
+    if (f.length < 5 || this.zones.length === 0) return;
+    this.zones[this.zones.length - 1].cf = f[4] === 'True';
   }
 
   private onZone(line: string): void {

@@ -24,6 +24,9 @@ pnpm-debug.log*
 test/fixtures/
 *.tmp
 
+# 외부 참조 자료(cactbot 문서 등) — 로컬 참고용
+/ref/
+
 # Playwright 산출물 (스크린샷은 실명 포함 가능)
 /e2e/shots/
 /test-results/

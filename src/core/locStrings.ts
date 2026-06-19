@@ -33,7 +33,7 @@ const MAP: Record<string, Triple> = {
   cat_shape: ['도형', 'Shape', '図形'],
   rail_compact: ['압축 보기', 'Compact', 'コンパクト表示'],
   rail_comfortable: ['넓게 보기', 'Comfortable', 'ゆったり表示'],
-  opt_hide_idle: ['대기 구간 숨기기', 'Hide idle sections', '待機区間を隠す'],
+  opt_hide_idle: ['임무 외 숨기기', 'Hide non-duty', '任務外を隠す'],
   opt_hide_postcombat: ['전투 종료 후 정리 숨기기', 'Hide post-combat cleanup', '戦闘終了後の整理を隠す'],
 
   // ── 검색 / 필터 ────────────────────────────────
@@ -186,7 +186,7 @@ const MAP: Record<string, Triple> = {
 
   // ── 구간 ──────────────────────────────────────
   seg_combat: ['전투', 'Combat', '戦闘'],
-  seg_idle: ['대기', 'Idle', '待機'],
+  seg_idle: ['임무 외', 'Non-duty', '任務外'],
   post_combat: ['전투 종료 후 정리', 'Post-combat cleanup', '戦闘終了後の整理'],
   rel_post: ['종료 +{0}:{1:00}', 'end +{0}:{1:00}', '終了 +{0}:{1:00}'],
 

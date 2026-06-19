@@ -55,7 +55,7 @@ export function buildEventItems(segments: Segment[], opts: FilterOpts): { items:
   const items: EventItem[] = [];
   let shown = 0;
   let source = opts.selectedKey === 'ALL' ? segments.slice() : segments.filter((s) => s.key === opts.selectedKey);
-  if (opts.hideIdle) source = source.filter((s) => s.isCombat); // 대기 구간 제외
+  if (opts.hideIdle) source = source.filter((s) => s.isCombat); // 임무 외(필드) 구간 제외
   if (opts.eventNewestFirst) source = source.slice().reverse();
 
   for (const seg of source) {

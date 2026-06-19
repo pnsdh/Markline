@@ -13,9 +13,10 @@ export class CombatWindow {
 
 /** 화면 표시용 구간 (전투 또는 전투 사이의 대기 시간). */
 export class Segment {
-  readonly isCombat: boolean;
-  readonly start: LogTime;
+  isCombat: boolean; // 구간에 전투가 있었는지 — 구간 확정 후 채워짐(아이콘/대기숨김용)
+  start: LogTime; // 표시 시작 시각 — 전투가 있으면 전투 시작에 맞춤(구간 확정 후 보정)
   end: LogTime | null;
+  combatEnd: LogTime | null = null; // 전투 종료(전멸) 시각 — 미니 타임라인 축 끝(이후 정리는 제외)
   readonly zone: string;
   readonly events: MarkerEvent[] = [];
 

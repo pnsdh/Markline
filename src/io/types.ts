@@ -16,7 +16,8 @@ export interface Snapshot {
   type: 'snapshot';
   events: MarkerEvent[];
   combats: { start: LogTime; end: LogTime | null }[];
-  zones: { time: LogTime; zone: string }[];
+  zones: { time: LogTime; zone: string; cf?: boolean }[];
+  wipes: LogTime[]; // 전멸 시각 — 구간(트라이) 경계
   myId: string | null;
   myName: string | null;
   lastLineTime: LogTime | null;

@@ -6,85 +6,95 @@ import { LogTime } from './time';
 export interface SessionData {
   events: MarkerEvent[];
   combats: { start: LogTime; end: LogTime | null }[];
-  zones: { time: LogTime; zone: string }[];
+  zones: { time: LogTime; zone: string; cf?: boolean }[]; // cf=인스턴스 듀티 여부
+  wipes?: readonly LogTime[]; // 전멸 시각 — 구간(트라이) 경계
 }
 
 type CombatWin = { start: LogTime; end: LogTime | null };
 
+const POST_COMBAT_WINDOW_MS = 12 * 60 * 1000; // 전투 종료 후 이만큼 안의 마커는 '전투 후 정리'
+
 /**
- * 이벤트를 전투 구간/대기 구간으로 묶는다. 이벤트가 있는 구간만 생성.
- * 전투 종료 후 다음 전투 전에 일어난 정리는 한 트라이의 마무리로 보고 직전 전투에 통합하되,
- * postCombat 플래그로 "전투 종료 후"임을 구분한다. 데스크톱 Segmenter.cs 의 1:1 포팅.
+ * 이벤트를 구간으로 묶는다. 경계 = **존 변경 + 전멸 직후 재교전**(전멸 다음의 첫 전투 시작).
+ *  - 레이드·토벌·절: 트라이마다 전멸 → 트라이별로 나뉜다. 전멸 시점이 아니라 '다음 풀'에서 끊어,
+ *    전멸 후 정리가 직전(전멸한) 트라이의 '전투 후 정리'로 남는다.
+ *  - 던전·필드: 전멸이 (거의) 없으니 인스턴스(존) 단위 한 덩어리.
+ * 구간 안에서 상대시간/전투후정리/전투여부는 기존(전투 윈도우 260) 규칙 그대로 계산한다.
  */
-const IDLE_GAP_SPLIT_MS = 20 * 60 * 1000; // 대기 구간을 새로 끊는 유휴 간격
-const POST_COMBAT_WINDOW_MS = 12 * 60 * 1000; // 전투 종료 후 이만큼 안의 정리는 직전 전투에 통합
-
 export function buildSegments(s: SessionData): Segment[] {
-  const segments: Segment[] = [];
-  const combatSeg = new Map<CombatWin, Segment>();
+  const events = s.events;
+  if (events.length === 0) return [];
   const combats = s.combats;
-  let gap: Segment | null = null;
-  let gapLast: LogTime = 0;
+  const wipes = s.wipes ?? [];
 
-  const combatSegFor = (win: CombatWin): Segment => {
-    let seg = combatSeg.get(win);
-    if (!seg) {
-      seg = new Segment(true, win.start, zoneAt(s.zones, win.start), win.end);
-      combatSeg.set(win, seg);
-      segments.push(seg);
-    }
-    seg.end = win.end;
-    return seg;
-  };
+  // 전멸 직후 첫 전투 시작 = 재교전 = 새 구간 시작. (전멸 자체는 경계가 아니다.)
+  const rePulls = wipes.map((w) => combats.find((c) => c.start > w)?.start).filter((t): t is LogTime => t != null);
+  const bounds = [...s.zones.map((z) => z.time), ...rePulls].sort((a, b) => a - b).filter((t, i, a) => i === 0 || t !== a[i - 1]);
 
-  for (const ev of s.events) {
-    // 1) 전투 중?
-    const inWin = combats.find((w) => ev.time >= w.start && (w.end == null || ev.time <= w.end));
-    if (inWin) {
-      const seg = combatSegFor(inWin);
-      ev.postCombat = false;
-      ev.relSpan = ev.time - inWin.start;
-      seg.events.push(ev);
-      gap = null;
-      continue;
-    }
+  const segments: Segment[] = [];
+  let cur: Segment | null = null;
+  let bi = 0; // 다음으로 비교할 경계 인덱스 (이벤트가 시간순이라 단조 전진)
 
-    // 2) 전투 종료 후 정리? 직전에 끝난 전투에 통합
-    let prev: CombatWin | null = null;
-    for (const w of combats) {
-      if (w.end != null && w.end < ev.time) prev = w;
-      else break;
+  for (const ev of events) {
+    let crossed = false;
+    while (bi < bounds.length && bounds[bi] <= ev.time) {
+      crossed = true;
+      bi++;
     }
-    const next = combats.find((w) => w.start > ev.time);
-
-    if (
-      prev?.end != null &&
-      (next == null || ev.time < next.start) &&
-      ev.time - prev.end <= POST_COMBAT_WINDOW_MS &&
-      zoneAt(s.zones, prev.end) === zoneAt(s.zones, ev.time)
-    ) {
-      const seg = combatSegFor(prev);
-      ev.postCombat = true;
-      ev.relSpan = ev.time - prev.end;
-      seg.events.push(ev);
-      gap = null;
-      continue;
+    if (cur == null || crossed) {
+      cur = new Segment(false, ev.time, zoneAt(s.zones, ev.time));
+      segments.push(cur);
     }
-
-    // 3) 전투와 무관한 단독 활동 (연습장 등)
-    const zone = zoneAt(s.zones, ev.time);
-    if (gap == null || gap.zone !== zone || ev.time - gapLast > IDLE_GAP_SPLIT_MS) {
-      gap = new Segment(false, ev.time, zone);
-      segments.push(gap);
-    }
-    gap.end = ev.time;
-    gapLast = ev.time;
-    ev.postCombat = false;
-    ev.relSpan = null;
-    gap.events.push(ev);
+    cur.end = ev.time;
+    cur.events.push(ev);
   }
 
+  for (const seg of segments) setSegmentTiming(seg, combats, cfAt(s.zones, seg.start) !== false);
   return segments;
+}
+
+/**
+ * 구간 내 각 이벤트의 상대시간·전투후정리(postCombat)·구간 전투여부를 채운다.
+ *  - 전투 중: 그 전투 시작 기준 (+m:ss)
+ *  - 마지막 전투가 끝난 뒤 12분 내(정리): 전투 종료 기준 (종료 +m:ss), postCombat=true
+ *  - 그 외(전투 사이·전투 이전·전투 없음): 상대시간 없음(null)
+ * postCombat 을 '마지막 전투 종료 이후'로만 잡으므로, 한 덩어리(던전)여도 정리는 늘 맨 끝이라
+ * 시간순이 깨지지 않는다. 단일 전투(레이드 트라이)에선 싸움 뒤 정리가 자연스럽게 구분된다.
+ */
+function setSegmentTiming(seg: Segment, combats: CombatWin[], isDuty: boolean): void {
+  // 필드/야외(비듀티): 전투 프레이밍 없이 평범한 시간순 묶음 — 상대시간·전투후정리·전투표시 생략.
+  if (!isDuty) {
+    for (const ev of seg.events) {
+      ev.postCombat = false;
+      ev.relSpan = null;
+    }
+    return; // isCombat=false 유지, seg.start=첫 마커 유지
+  }
+  const end = seg.end ?? seg.start;
+  const inSeg = combats.filter((w) => w.start <= end && (w.end == null || w.end >= seg.start));
+  if (inSeg.length > 0) {
+    seg.isCombat = true;
+    // 표시 시작을 '전투 시작'에 맞춘다(눈금·시간 표시 기준). 단, 풀 전 준비 마커가 더 빠르면 그대로 둬 안 잘리게.
+    const firstCombat = Math.min(...inSeg.map((w) => w.start));
+    if (firstCombat < seg.start) seg.start = firstCombat;
+  }
+  let lastEnd: LogTime | null = null;
+  for (const w of inSeg) if (w.end != null && (lastEnd == null || w.end > lastEnd)) lastEnd = w.end;
+  seg.combatEnd = lastEnd; // 미니 타임라인 축 끝(전투 종료/전멸)
+
+  for (const ev of seg.events) {
+    const mine = inSeg.find((w) => ev.time >= w.start && (w.end == null || ev.time <= w.end));
+    if (mine) {
+      ev.postCombat = false;
+      ev.relSpan = ev.time - mine.start;
+    } else if (lastEnd != null && ev.time > lastEnd && ev.time - lastEnd <= POST_COMBAT_WINDOW_MS) {
+      ev.postCombat = true;
+      ev.relSpan = ev.time - lastEnd;
+    } else {
+      ev.postCombat = false;
+      ev.relSpan = null;
+    }
+  }
 }
 
 function zoneAt(zones: { time: LogTime; zone: string }[], t: LogTime): string {
@@ -94,4 +104,14 @@ function zoneAt(zones: { time: LogTime; zone: string }[], t: LogTime): string {
     result = z.zone;
   }
   return result;
+}
+
+/** t 시점 존의 인스턴스 듀티 여부(265). 정보가 없으면 undefined(듀티로 간주해 프레이밍 유지). */
+function cfAt(zones: { time: LogTime; cf?: boolean }[], t: LogTime): boolean | undefined {
+  let cf: boolean | undefined;
+  for (const z of zones) {
+    if (z.time > t) break;
+    cf = z.cf;
+  }
+  return cf;
 }

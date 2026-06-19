@@ -14,6 +14,7 @@ function snapshot(live: boolean): Snapshot {
     events: session.events,
     combats: session.combats.map((c) => ({ start: c.start, end: c.end })),
     zones: session.zones.slice(),
+    wipes: session.wipes.slice(),
     myId: session.myId,
     myName: session.myName,
     lastLineTime: session.lastLineTime,
