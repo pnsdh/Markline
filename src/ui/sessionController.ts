@@ -87,11 +87,15 @@ function handleWorkerMessage(msg: FromWorker): void {
   }
 }
 
-/** 핸들을 실시간 추적 시작 (단일 파일). */
-function doTail(handle: FileSystemFileHandle): void {
+/**
+ * 핸들을 실시간 추적 시작. silent=true(롤오버 자동 전환)면 로딩 오버레이를 띄우지 않고
+ * 조용히 교체한다 — 새 파일은 보통 거의 비어 있어 즉시 새 스냅샷으로 채워지므로 깜빡임만 생긴다.
+ */
+function doTail(handle: FileSystemFileHandle, silent = false): void {
   currentTailName = handle.name;
   void saveHandle('lastFile', handle);
-  api.setState({ status: 'loading', progress: 0, fileName: handle.name, error: null, selectedKey: 'ALL', live: true });
+  const base = { fileName: handle.name, error: null, selectedKey: 'ALL', live: true } as const;
+  api.setState(silent ? base : { ...base, status: 'loading', progress: 0 });
   post({ type: 'tailHandle', handle });
 }
 
@@ -108,7 +112,7 @@ function startDirWatch(dir: FileSystemDirectoryHandle): void {
   dirPollTimer = window.setInterval(async () => {
     if (currentDir !== dir) return;
     const h = await newestLog(dir);
-    if (h && h.name !== currentTailName) doTail(h);
+    if (h && h.name !== currentTailName) doTail(h, true); // 롤오버 — 조용히 전환(로딩 오버레이 없이)
   }, 5000);
 }
 

@@ -41,7 +41,7 @@ export function StatusBarV2() {
       <div className="mx-auto flex max-w-[1100px] items-center gap-2 px-5 py-2">
         <span className="relative flex h-2.5 w-2.5 shrink-0">
           {status === 'ready' && live && fresh && (
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: dot }} />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:hidden" style={{ background: dot }} />
           )}
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: dot }} />
         </span>

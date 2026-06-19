@@ -26,6 +26,7 @@ export function Timeline() {
   const eventNewestFirst = useStore((s) => s.eventNewestFirst);
   const following = useStore((s) => s.following);
   const totalEvents = useStore((s) => s.eventCount);
+  const live = useStore((s) => s.live);
   const actionFilter = useStore((s) => s.actionFilter);
   const hideIdle = useStore((s) => s.hideIdle);
   const hidePostCombat = useStore((s) => s.hidePostCombat);
@@ -200,8 +201,21 @@ export function Timeline() {
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 pb-8">
         {shown === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-[14px] text-mk-text-faint">
-            {totalEvents > 0 ? Loc.t('no_events_filtered') : Loc.t('no_events_none')}
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-[14px] text-mk-text-faint">
+            {/* 필터로 0건 / (정적) 빈 로그 / 실시간 추적 중 빈 새 로그(=롤오버 직후) 를 구분해 안내 */}
+            {totalEvents > 0 ? (
+              Loc.t('no_events_filtered')
+            ) : live ? (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mk-accent opacity-60 motion-reduce:hidden" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-mk-accent" />
+                </span>
+                <span className="max-w-sm leading-relaxed">{Loc.t('empty_live_hint')}</span>
+              </>
+            ) : (
+              Loc.t('no_events_none')
+            )}
           </div>
         ) : (
           // 폭 제한은 앱 전체(가운데 정렬 컬럼)에서 처리 — 여기선 박스를 꽉 채운다.
