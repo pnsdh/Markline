@@ -49,7 +49,7 @@ export interface StoreState extends PersistedSettings {
 
   // 액션 — IO(파일/추적)는 sessionController 에 위임, 나머지는 여기서 상태만 갱신
   openFile: (file: File) => void;
-  tailHandle: (handle: FileSystemFileHandle) => void;
+  openFileHandle: (handle: FileSystemFileHandle) => void;
   openLatestFromDir: (dir: FileSystemDirectoryHandle) => void;
   resumeWatch: () => void;
   setTheme: (t: ThemePref) => void;
@@ -130,7 +130,7 @@ export const useStore = create<StoreState>((set, get) => {
 
     // ── IO 위임 (워커/파일 추적은 sessionController 가 상태를 직접 갱신) ──
     openFile: (file) => session.loadFile(file),
-    tailHandle: (handle) => session.tailHandle(handle),
+    openFileHandle: (handle) => session.openFileHandle(handle),
     openLatestFromDir: (dir) => session.openLatestFromDir(dir),
     resumeWatch: () => session.resumeWatch(),
 

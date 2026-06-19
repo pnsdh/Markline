@@ -127,15 +127,17 @@ export function loadFile(file: File): void {
 }
 
 /**
- * 파일 핸들 실시간 추적 (이 세션은 폴더 자동전환 없음).
- * 단, 기억해둔 폴더(lastDir)는 지우지 않는다 — 일회성 단일 파일 열기가 "시작 시 최신 로그
- * 자동 열기"(폴더 기반)를 끊지 않도록. 시작 시엔 lastDir 가 lastFile 보다 우선한다.
+ * 파일 핸들 1회 정적 분석 — 실시간 추적·롤오버 없음(과거 전투 리뷰용).
+ * 핸들의 현재 내용을 한 번 읽고 끝내므로 폴링도 하지 않는다. 실시간이 필요하면
+ * 폴더 기반 openLatestFromDir 를 쓴다. (정적 경로라 lastFile 로 기억하지도 않아
+ * "시작 시 최신 로그 자동 열기"(폴더 기반)를 오염시키지 않는다.)
  */
-export function tailHandle(handle: FileSystemFileHandle): void {
-  stopDirWatch();
-  currentDir = null;
-  api.setState({ folderName: null });
-  doTail(handle);
+export async function openFileHandle(handle: FileSystemFileHandle): Promise<void> {
+  try {
+    loadFile(await handle.getFile());
+  } catch (err) {
+    api.setState({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+  }
 }
 
 /** 폴더의 최신 로그를 열고, 새 로그가 생기면 자동 전환하며 추적. */
@@ -162,7 +164,7 @@ export async function resumeWatch(): Promise<void> {
   pendingHandle = null;
   api.setState({ pendingResume: null });
   if (h.kind === 'directory') openLatestFromDir(h);
-  else tailHandle(h);
+  else openFileHandle(h);
 }
 
 /**
@@ -180,7 +182,7 @@ export async function tryStartupResume(): Promise<void> {
   const perm = handle.queryPermission ? await handle.queryPermission({ mode: 'read' }) : 'granted';
   if (perm === 'granted') {
     if (dir) openLatestFromDir(dir);
-    else if (file) tailHandle(file);
+    else if (file) openFileHandle(file);
   } else {
     pendingHandle = handle;
     api.setState({ pendingResume: { kind: dir ? 'dir' : 'file', name: handle.name } });
